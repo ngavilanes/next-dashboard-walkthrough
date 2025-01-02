@@ -4,17 +4,17 @@ import {
   CustomersTableType,
   InvoiceForm,
   InvoicesTable,
-  LatestInvoiceRaw,
   Revenue,
+  // LatestInvoiceRaw,
 } from './definitions';
 import { supabase } from './supaBaseClient';
 import { formatCurrency } from './utils';
 
-export async function fetchRevenue() {
+export async function fetchRevenue(): Promise<Revenue[]> {
   try {
     const { data: revenue, error } = await supabase.from('revenue').select('*');
     if (error) {
-      return 'error'
+      return [];
     }
     return revenue;
 
