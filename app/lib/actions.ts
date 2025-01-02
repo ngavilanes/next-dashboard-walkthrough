@@ -1,0 +1,1 @@
+'use server'; //marks all functions here as server actions
