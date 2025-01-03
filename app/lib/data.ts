@@ -17,7 +17,6 @@ export async function fetchRevenue(): Promise<Revenue[]> {
       return [];
     }
     return revenue;
-
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch revenue data.');
@@ -26,9 +25,7 @@ export async function fetchRevenue(): Promise<Revenue[]> {
 
 export async function fetchLatestInvoices() {
   try {
-    const { data, error } = await supabase
-      .from('recent_invoices')
-      .select('*');
+    const { data, error } = await supabase.from('recent_invoices').select('*');
 
     if (error) {
       console.error('Error fetching recent invoices:', error);
@@ -36,7 +33,6 @@ export async function fetchLatestInvoices() {
       const latestInvoices = data?.map((invoice) => ({
         ...invoice,
         amount: formatCurrency(invoice.amount),
-
       }));
       return latestInvoices;
     }
@@ -57,9 +53,7 @@ export async function fetchCardData() {
       .from('customers')
       .select('*', { count: 'exact', head: true }); // Count customers
 
-    const invoiceStatusPromise = supabase
-      .from('invoice_status')
-      .select('*');
+    const invoiceStatusPromise = supabase.from('invoice_status').select('*');
 
     // Use Promise.all to fetch data in parallel
     const [invoiceCount, customerCount, invoiceStatus] = await Promise.all([
@@ -70,8 +64,12 @@ export async function fetchCardData() {
 
     const numberOfInvoices = Number(invoiceCount?.count ?? '0');
     const numberOfCustomers = Number(customerCount?.count ?? '0');
-    const totalPaidInvoices = formatCurrency(invoiceStatus?.data?.[0]?.paid ?? '0');
-    const totalPendingInvoices = formatCurrency(invoiceStatus?.data?.[0]?.pending ?? '0');
+    const totalPaidInvoices = formatCurrency(
+      invoiceStatus?.data?.[0]?.paid ?? '0'
+    );
+    const totalPendingInvoices = formatCurrency(
+      invoiceStatus?.data?.[0]?.pending ?? '0'
+    );
 
     return {
       numberOfCustomers,
@@ -88,38 +86,46 @@ export async function fetchCardData() {
 const ITEMS_PER_PAGE = 6;
 export async function fetchFilteredInvoices(
   query: string,
-  currentPage: number,
-) {
+  currentPage: number
+): Promise<InvoicesTable[]> {
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-  const client = await db.connect();
   try {
-    const invoices = await client.sql<InvoicesTable>`
-      SELECT
-        invoices.id,
-        invoices.amount,
-        invoices.date,
-        invoices.status,
-        customers.name,
-        customers.email,
-        customers.image_url
-      FROM invoices
-      JOIN customers ON invoices.customer_id = customers.id
-      WHERE
-        customers.name ILIKE ${`%${query}%`} OR
-        customers.email ILIKE ${`%${query}%`} OR
-        invoices.amount::text ILIKE ${`%${query}%`} OR
-        invoices.date::text ILIKE ${`%${query}%`} OR
-        invoices.status ILIKE ${`%${query}%`}
-      ORDER BY invoices.date DESC
-      LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
-    `;
+    const { data, error } = await supabase
+      .from('invoices_with_cast')
+      .select('*')
+      .or(
+        `status.ilike.%${query}%,amount_text.ilike.%${query},customer_name.ilike.%${query}%,customer_email.ilike.%${query}%`
+      )
+      .order('date_text', { ascending: false })
+      .range(offset, offset + ITEMS_PER_PAGE - 1);
 
-    return invoices.rows;
+    console.log('data', data);
+
+    if (error) {
+      console.error('Query failed:', error.message);
+    } else {
+      console.log('Query succeeded:', data);
+    }
+    if (data) {
+      const transformedData: InvoicesTable[] = data.map((invoice: any) => {
+        return {
+          id: String(invoice.id),
+          customer_id: String(invoice.customer_id),
+          name: invoice?.customer_name || '', // fallback to empty if data doesn't exist
+          email: invoice?.customer_email || '',
+          image_url: invoice?.image_url || '',
+          date: invoice.date_text,
+          amount: invoice.amount_text,
+          status: invoice.status,
+        };
+      });
+      return transformedData;
+    }
+      return [];
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch invoices.');
+    console.error('Error fetching invoices:', error);
+    throw new Error('Failed to fetch invoices');
   }
-
 }
 
 export async function fetchInvoicesPages(query: string) {

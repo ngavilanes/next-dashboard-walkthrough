@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   //   ppr: 'incremental',
   // },
   /* config options here */
+  
 };
 
 export default nextConfig;
