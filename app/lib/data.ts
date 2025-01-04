@@ -1,6 +1,6 @@
 import { db } from '@vercel/postgres';
 import {
-  CustomerField,
+  //CustomerField,
   CustomersTableType,
   InvoiceForm,
   InvoicesTable,
@@ -107,6 +107,7 @@ export async function fetchFilteredInvoices(
       console.log('Query succeeded:', data);
     }
     if (data) {
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       const transformedData: InvoicesTable[] = data.map((invoice: any) => {
         return {
           id: String(invoice.id),
@@ -121,7 +122,7 @@ export async function fetchFilteredInvoices(
       });
       return transformedData;
     }
-      return [];
+    return [];
   } catch (error) {
     console.error('Error fetching invoices:', error);
     throw new Error('Failed to fetch invoices');
@@ -178,17 +179,15 @@ export async function fetchInvoiceById(id: string) {
 
 export async function fetchCustomers() {
   try {
-    const client = await db.connect();
-    const data = await client.sql<CustomerField>`
-      SELECT
-        id,
-        name
-      FROM customers
-      ORDER BY name ASC
-    `;
-
-    const customers = data.rows;
-    return customers;
+    const { data, error } = await supabase
+      .from('customers')
+      .select(`id,name`)
+      .order('name', { ascending: true });
+    if (error) {
+      console.log('error', error);
+      throw new Error('Failed to fetch Customers');
+    }
+    return data;
   } catch (err) {
     console.error('Database Error:', err);
     throw new Error('Failed to fetch all customers.');
