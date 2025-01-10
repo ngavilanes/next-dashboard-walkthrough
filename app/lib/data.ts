@@ -2,7 +2,7 @@ import { db } from '@vercel/postgres';
 import {
   //CustomerField,
   CustomersTableType,
-  InvoiceForm,
+ // InvoiceForm,
   InvoicesTable,
   Revenue,
   // LatestInvoiceRaw,
@@ -99,8 +99,6 @@ export async function fetchFilteredInvoices(
       .order('date_text', { ascending: false })
       .range(offset, offset + ITEMS_PER_PAGE - 1);
 
-    console.log('data', data);
-
     if (error) {
       console.error('Query failed:', error.message);
     } else {
@@ -153,18 +151,36 @@ export async function fetchInvoicesPages(query: string) {
 
 export async function fetchInvoiceById(id: string) {
   try {
-    const client = await db.connect();
-    const data = await client.sql<InvoiceForm>`
-      SELECT
-        invoices.id,
-        invoices.customer_id,
-        invoices.amount,
-        invoices.status
-      FROM invoices
-      WHERE invoices.id = ${id};
-    `;
+    // const client = await db.connect();
+    // const data = await client.sql<InvoiceForm>`
+    //   SELECT
+    //     invoices.id,
+    //     invoices.customer_id,
+    //     invoices.amount,
+    //     invoices.status
+    //   FROM invoices
+    //   WHERE invoices.id = ${id};
+    // `;
+    const { data, error } = await supabase
+      .from('invoices')
+      .select(
+        `
+      id,
+      customer_id,
+      amount,
+      status
+      `
+      )
+      .eq('id', id)
+      .select();
 
-    const invoice = data.rows.map((invoice) => ({
+    if (error) {
+      console.log('error', error);
+      throw new Error('error fetching invoice by id');
+    }
+
+    console.log('data', data);
+    const invoice = data.map((invoice) => ({
       ...invoice,
       // Convert amount from cents to dollars
       amount: invoice.amount / 100,
